@@ -96,7 +96,7 @@ const App: React.FC = () => {
   const handleAddResponse = () => {
     setResponses((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), statusCode: '200', description: '', contentType: 'application/json', bodyExample: '' },
+      { id: crypto.randomUUID(), statusCode: '', description: '', contentType: 'application/json', bodyExample: '' },
     ]);
   };
 
