@@ -24,6 +24,7 @@ const App: React.FC = () => {
   const [convertError, setConvertError] = useState<string | null>(null);
   const [yamlOutput, setYamlOutput] = useState('');
   const [details, setDetails] = useState('');
+  const [modelUsed, setModelUsed] = useState('');
   const [allParams, setAllParams] = useState<CurlParameter[]>([]);
   const [responses, setResponses] = useState<UserDefinedResponse[]>([]);
   const [paramsOpen, setParamsOpen] = useState(true);
@@ -54,6 +55,7 @@ const App: React.FC = () => {
     setConvertError(null);
     setYamlOutput('');
     setDetails('');
+    setModelUsed('');
     setAllParams([]);
 
     // Run AI conversion + local parser in parallel
@@ -67,6 +69,7 @@ const App: React.FC = () => {
     if (aiRes.status === 'fulfilled') {
       setYamlOutput(aiRes.value.yaml);
       setDetails(aiRes.value.details);
+      setModelUsed(aiRes.value.modelUsed);
     } else {
       setConvertError(
         (aiRes.reason as Error)?.message ?? 'Conversion failed. Please try again.'
@@ -363,7 +366,7 @@ const App: React.FC = () => {
                 </span>
                 <span className="text-slate-600 text-[10px]">•</span>
                 <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-                  OAS 3.0.0 · ReadMe.com optimised · Auth truncated
+                  OAS 3.0.0 · ReadMe.com optimised · {modelUsed || 'gemini-2.0-flash'}
                 </span>
               </div>
 
