@@ -96,13 +96,13 @@ const App: React.FC = () => {
   const handleAddResponse = () => {
     setResponses((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), statusCode: '', description: '' },
+      { id: crypto.randomUUID(), statusCode: '200', description: '', contentType: 'application/json', bodyExample: '' },
     ]);
   };
 
   const handleUpdateResponse = (
     id: string,
-    field: 'statusCode' | 'description',
+    field: 'statusCode' | 'description' | 'bodyExample',
     value: string
   ) => {
     setResponses((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
@@ -390,7 +390,7 @@ const App: React.FC = () => {
             OAS Writer Pro · Capillary Technologies
           </p>
           <p className="text-[10px] text-slate-400">
-            Powered by Grok AI · {new Date().getFullYear()}
+            Powered by Gemini AI · {new Date().getFullYear()}
           </p>
         </div>
       </footer>

@@ -81,9 +81,27 @@ export const patchYaml = (
     if (!operation.responses) operation.responses = {};
     for (const res of responses) {
       if (!res.statusCode) continue;
-      operation.responses[res.statusCode] = {
+      const responseObj: any = {
         description: res.description || 'No description provided.',
       };
+      if (res.bodyExample?.trim()) {
+        try {
+          const parsed = JSON.parse(res.bodyExample);
+          responseObj.content = {
+            'application/json': {
+              example: parsed,
+            },
+          };
+        } catch {
+          // If not valid JSON, include as raw string
+          responseObj.content = {
+            'application/json': {
+              example: res.bodyExample.trim(),
+            },
+          };
+        }
+      }
+      operation.responses[res.statusCode] = responseObj;
     }
   }
 
