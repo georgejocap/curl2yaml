@@ -69,14 +69,6 @@ const ResponseCard: React.FC<{
           </button>
         </div>
 
-        {/* Description */}
-        <input
-          type="text"
-          value={res.description}
-          onChange={(e) => onUpdate(res.id, 'description', e.target.value)}
-          placeholder="Short description, e.g. Returns created resource"
-          className="w-full text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300 placeholder-slate-300"
-        />
       </div>
 
       {/* Body — always visible, styled as code editor */}

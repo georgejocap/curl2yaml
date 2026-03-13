@@ -82,7 +82,7 @@ export const patchYaml = (
     for (const res of responses) {
       if (!res.statusCode) continue;
       const responseObj: any = {
-        description: res.description || 'No description provided.',
+        description: res.description || res.statusCode,
       };
       if (res.bodyExample?.trim()) {
         try {
