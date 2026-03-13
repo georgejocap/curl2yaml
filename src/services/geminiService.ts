@@ -1,4 +1,5 @@
-import { GoogleGenAI } from '@google/genai';
+const GEMINI_ENDPOINT =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent';
 
 const SYSTEM_INSTRUCTION = `You are an expert API Technical Writer and OpenAPI Specification converter. Your sole purpose is to convert raw cURL commands into valid, production-ready OpenAPI 3.0.0 (YAML) definitions specifically optimized for ReadMe.com.
 
@@ -49,18 +50,31 @@ export const convertCurlToOpenAPI = async (
   // Clean malformed double-protocol URLs
   const cleanedCurl = curlCommand.replace(/(https?:\/\/)(?:https?:\/\/|https?\/)/gi, '$1');
 
-  const ai = new GoogleGenAI({ apiKey });
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-preview-04-17',
-    contents: cleanedCurl,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      temperature: 0.1,
-    },
+  const res = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: SYSTEM_INSTRUCTION }],
+      },
+      contents: [
+        {
+          parts: [{ text: cleanedCurl }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.1,
+      },
+    }),
   });
 
-  const fullText = response.text ?? '';
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini API error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  const fullText: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
   const yamlMatch = fullText.match(/```yaml\n([\s\S]*?)```/);
   const yaml = yamlMatch ? yamlMatch[1].trim() : '';
