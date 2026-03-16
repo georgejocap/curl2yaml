@@ -1,7 +1,7 @@
 import type { ParsedCurlData, CurlParameter } from '../types';
 
 const inferType = (value: any): string => {
-  if (value === null || value === undefined) return 'null';
+  if (value === null || value === undefined) return 'string';
   const jsType = typeof value;
   if (jsType === 'boolean') return 'boolean';
   if (jsType === 'number') return Number.isInteger(value) ? 'integer' : 'number';

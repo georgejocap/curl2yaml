@@ -70,6 +70,7 @@ Each non-reserved header/query parameter must follow this exact structure:
 - Detect content type from Content-Type header in cURL (default: application/json)
 - Include ONLY the fields literally present in --data / --data-raw / --data-urlencode
 - Infer each field's type from its actual value (string, integer, boolean, array, object)
+- NEVER use "type: any" — it is NOT a valid OpenAPI 3.0 type and will fail schema validation. If a value is null or the type is unknown, use "type: string"
 - Structure:
     requestBody:
       required: true
