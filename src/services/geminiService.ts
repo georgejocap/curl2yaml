@@ -1,7 +1,6 @@
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
-const CACHE_KEY = 'oas_gemini_model';
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const FALLBACK_MODEL = 'gemini-2.0-flash';
+// Google's official alias — always points to the latest stable Flash model automatically
+const MODEL = 'gemini-2.0-flash-latest';
 
 const SYSTEM_INSTRUCTION = `You are an OpenAPI 3.0.0 YAML generator. Convert the given cURL command into a strictly valid OpenAPI 3.0.0 YAML spec optimised for ReadMe.com.
 
@@ -105,43 +104,6 @@ If no [USER-REQUIRED: ...] line is present, set ALL parameters to required: fals
 
 Use 2-space indentation throughout. Output no other text.`;
 
-/**
- * Calls the Gemini ListModels API and returns the latest free Flash model name.
- * Result is cached in localStorage for 24 hours so it only runs once per day.
- */
-const getLatestFreeModel = async (apiKey: string): Promise<string> => {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    const cachedAt = localStorage.getItem(`${CACHE_KEY}_ts`);
-    if (cached && cachedAt && Date.now() - parseInt(cachedAt) < CACHE_TTL_MS) {
-      return cached;
-    }
-
-    const res = await fetch(`${BASE_URL}/models?key=${apiKey}`);
-    if (!res.ok) return FALLBACK_MODEL;
-
-    const data = await res.json();
-    const models: any[] = data.models ?? [];
-
-    // Keep only Flash models that support generateContent and are not thinking variants
-    const flashModels = models
-      .filter(
-        (m) =>
-          m.name.toLowerCase().includes('flash') &&
-          !m.name.toLowerCase().includes('thinking') &&
-          (m.supportedGenerationMethods ?? []).includes('generateContent')
-      )
-      .map((m) => m.name.replace('models/', ''))
-      .sort((a, b) => b.localeCompare(a));
-
-    const best = flashModels[0] ?? FALLBACK_MODEL;
-    localStorage.setItem(CACHE_KEY, best);
-    localStorage.setItem(`${CACHE_KEY}_ts`, Date.now().toString());
-    return best;
-  } catch {
-    return FALLBACK_MODEL;
-  }
-};
 
 export const convertCurlToOpenAPI = async (
   curlCommand: string,
@@ -159,8 +121,7 @@ export const convertCurlToOpenAPI = async (
     userMessage += `\n\n[USER-REQUIRED: ${list}]`;
   }
 
-  const model = await getLatestFreeModel(apiKey);
-  const endpoint = `${BASE_URL}/models/${model}:generateContent?key=${apiKey}`;
+  const endpoint = `${BASE_URL}/models/${MODEL}:generateContent?key=${apiKey}`;
 
   const res = await fetch(endpoint, {
     method: 'POST',
@@ -173,9 +134,6 @@ export const convertCurlToOpenAPI = async (
   });
 
   if (!res.ok) {
-    // If this model fails, clear the cache so next attempt re-discovers
-    localStorage.removeItem(CACHE_KEY);
-    localStorage.removeItem(`${CACHE_KEY}_ts`);
     const err = await res.text();
     throw new Error(`Gemini API error ${res.status}: ${err}`);
   }
@@ -194,5 +152,5 @@ export const convertCurlToOpenAPI = async (
 
   const detailsPart = fullText.split('```yaml')[1]?.split('```')[1]?.trim() ?? '';
 
-  return { yaml, details: detailsPart, modelUsed: model };
+  return { yaml, details: detailsPart, modelUsed: MODEL };
 };
