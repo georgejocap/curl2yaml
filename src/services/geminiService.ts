@@ -3,21 +3,11 @@ const CACHE_KEY = 'oas_gemini_model';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const FALLBACK_MODEL = 'gemini-2.0-flash';
 
-const SYSTEM_INSTRUCTION = `You are an OpenAPI 3.0.0 YAML generator. Convert the given cURL command into a valid OpenAPI 3.0.0 YAML definition optimized for ReadMe.com.
+const SYSTEM_INSTRUCTION = `You are an OpenAPI 3.0.0 YAML generator. Convert the given cURL command into a strictly valid OpenAPI 3.0.0 YAML spec optimised for ReadMe.com.
 
-STRICT RULE: Every field in the output MUST come directly from the cURL command. Do NOT invent, assume, or add anything that is not explicitly present in the cURL. The only exceptions are the two items listed below under "You MAY generate".
+Every field in the output MUST come directly from the cURL. Do NOT invent, guess, or add anything not explicitly present. The only things you may derive are: info.title (from method + path), info.version ("1.0.0"), operation summary, and response descriptions.
 
----
-
-YOU MAY GENERATE (and only these):
-- info.title: A short, human-readable name derived from the HTTP method + URL path (e.g. "Get Customer Points")
-- info.version: Always "1.0.0"
-- A one-line operation summary derived from the HTTP method + path
-- Response description text (e.g. "Successful response") — but NO response body, schema, or example
-
----
-
-FIXED SERVERS BLOCK (always output this exactly, do not change it):
+━━━ SERVERS (output exactly, never change) ━━━
 servers:
   - url: https://eu.intouch.capillarytech.com
     description: EU
@@ -32,38 +22,79 @@ servers:
   - url: https://north-america.intouch.capillarytech.com
     description: US
 
----
+━━━ PARAMETERS ━━━
+CRITICAL: NEVER place a "headers:" property directly on an operation object. It is NOT valid OpenAPI 3.0 and will fail ReadMe validation.
 
-PARAMETERS: Only include parameters that are literally present in the cURL:
-- Query parameters: only those in the URL after "?"
-- Headers: only those passed with -H or --header (use exact names and values)
-- Request body: only fields actually present in the --data or --data-raw payload
+- Query parameters (from URL ?key=value): add to "parameters" array with "in: query"
+- Custom request headers (from -H / --header): add to "parameters" array with "in: header"
+- SKIP these reserved headers — do NOT put them in parameters at all: Accept, Content-Type, Authorization
+  (Content-Type is expressed via the requestBody media type key; Authorization via securitySchemes)
 
-DO NOT add any parameter, field, or property that is not in the cURL.
+Each non-reserved header/query parameter must follow this exact structure:
+  - name: <exact name from cURL>
+    in: header   # or: query
+    required: true
+    schema:
+      type: string
+    example: "<exact value from cURL>"
 
----
+━━━ REQUEST BODY ━━━
+- Use "requestBody" directly on the operation (never inside "parameters")
+- Detect content type from Content-Type header in cURL (default: application/json)
+- Include ONLY the fields literally present in --data / --data-raw / --data-urlencode
+- Infer each field's type from its actual value (string, integer, boolean, array, object)
+- Structure:
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              <key>:
+                type: <inferred type>
+                example: <actual value from cURL>
 
-AUTHENTICATION:
-- If the cURL has "Authorization: Basic [token]", you MUST remove the last 4 characters of [token] before including it. This is mandatory.
-- Include it as a header parameter with the truncated value as the example.
+━━━ AUTHENTICATION ━━━
+If the cURL has "Authorization: Basic [token]":
+  1. Remove the last 4 characters of [token] (truncate for security)
+  2. Add to components.securitySchemes:
+       components:
+         securitySchemes:
+           basicAuth:
+             type: http
+             scheme: basic
+  3. Add to the operation:
+       security:
+         - basicAuth: []
+  4. Also document it as a header parameter showing the truncated value:
+       - name: Authorization
+         in: header
+         required: true
+         schema:
+           type: string
+         example: "Basic <truncated_token>"
 
----
+━━━ RESPONSES ━━━
+- ONE response only: "200" for GET/PUT/PATCH/DELETE, "201" for POST
+- ONLY a "description" field — NO content, schema, or example body
+    responses:
+      '200':
+        description: Successful response
 
-RESPONSES:
-- Include only ONE response entry: "200" for GET/PUT/PATCH/DELETE, "201" for POST.
-- The response entry must have ONLY a "description" field. Nothing else.
-- NEVER include content, schema, example, or any response body.
+━━━ OPERATION OBJECT — ALLOWED PROPERTIES ONLY ━━━
+An operation may only have these properties: tags, summary, description, operationId, parameters, requestBody, responses, security, deprecated, servers, callbacks, and x-* extensions.
+NEVER add any other top-level property to an operation (no "headers:", no "host:", no "baseUrl:", no "consumes:", no "produces:").
+operationId: camelCase, unique, under 30 characters, derived from method + path (e.g. "getCustomerPoints").
 
----
-
-OUTPUT FORMAT:
-1. Output the YAML inside \`\`\`yaml ... \`\`\` code block.
-2. Then output "Analysis Summary" with exactly three bullet points:
+━━━ OUTPUT FORMAT ━━━
+1. Output the complete YAML inside a \`\`\`yaml ... \`\`\` code block
+2. Follow with "Analysis Summary" containing exactly three bullet points:
    - Summary: [operation title]
    - Method: [HTTP METHOD]
    - Path: [path only, no host]
 
-Use 2-space indentation. Output no other text.`;
+Use 2-space indentation throughout. Output no other text.`;
 
 /**
  * Calls the Gemini ListModels API and returns the latest free Flash model name.
@@ -83,7 +114,7 @@ const getLatestFreeModel = async (apiKey: string): Promise<string> => {
     const data = await res.json();
     const models: any[] = data.models ?? [];
 
-    // Keep only Flash models that support generateContent and are not preview/experimental
+    // Keep only Flash models that support generateContent and are not thinking variants
     const flashModels = models
       .filter(
         (m) =>
@@ -92,7 +123,6 @@ const getLatestFreeModel = async (apiKey: string): Promise<string> => {
           (m.supportedGenerationMethods ?? []).includes('generateContent')
       )
       .map((m) => m.name.replace('models/', ''))
-      // Sort descending — "gemini-2.0-flash" > "gemini-1.5-flash" lexicographically
       .sort((a, b) => b.localeCompare(a));
 
     const best = flashModels[0] ?? FALLBACK_MODEL;
