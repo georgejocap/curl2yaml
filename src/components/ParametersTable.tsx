@@ -14,11 +14,11 @@ const ParametersTable: React.FC<ParametersTableProps> = ({ params, onToggle }) =
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-100">
-            <th className="py-2.5 pl-3 pr-2 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider w-10">
-              Req
+            <th className="py-2.5 pl-3 pr-2 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Mark as Required
             </th>
             <th className="py-2.5 px-2 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Name
+              Parameter
             </th>
           </tr>
         </thead>
