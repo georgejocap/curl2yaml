@@ -40,13 +40,14 @@ servers:
     variables:
       Host:
         enum:
+          - '{Host}'
           - eu.intouch.capillarytech.com
           - intouch.capillary.co.in
           - apac2.intouch.capillarytech.com
           - sgcrm.cc.capillarytech.com
           - intouch.capillarytech.cn.com
           - north-america.intouch.capillarytech.com
-        default: eu.intouch.capillarytech.com
+        default: '{Host}'
 
 ━━━ PARAMETERS ━━━
 CRITICAL: NEVER place a "headers:" property directly on an operation object. It is NOT valid OpenAPI 3.0 and will fail ReadMe validation.
