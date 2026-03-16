@@ -56,12 +56,9 @@ const EndpointHeader: React.FC<EndpointHeaderProps> = ({ title, method, path }) 
           <button
             onClick={() => setOpen((o) => !o)}
             className="flex items-center gap-1 text-indigo-400 font-semibold hover:text-indigo-300 transition-colors px-1 py-0.5 rounded hover:bg-slate-700"
-            title="Regional servers included in YAML"
+            title="Regional server variable"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
-            </svg>
-            <span className="text-xs">Regions</span>
+            &#123;Host&#125;
             <svg
               className={`w-3 h-3 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
               fill="none" stroke="currentColor" viewBox="0 0 24 24"

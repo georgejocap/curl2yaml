@@ -113,6 +113,10 @@ const App: React.FC = () => {
     setAllParams((prev) => prev.map((p) => (p.id === id ? { ...p, isMandatory: mandatory } : p)));
   };
 
+  const handleTypeChange = (id: string, type: string) => {
+    setAllParams((prev) => prev.map((p) => (p.id === id ? { ...p, inferredType: type } : p)));
+  };
+
   // ── Responses ──────────────────────────────────────────────────────────────
   const handleAddResponse = () => {
     setResponses((prev) => [
@@ -343,7 +347,7 @@ const App: React.FC = () => {
                       : 'Parameters appear here as you type your cURL.'}
                   </p>
                 ) : (
-                  <ParametersTable params={allParams} onToggle={handleToggleParam} />
+                  <ParametersTable params={allParams} onToggle={handleToggleParam} onTypeChange={handleTypeChange} />
                 )}
               </div>
             )}
