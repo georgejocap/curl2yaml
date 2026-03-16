@@ -347,6 +347,24 @@ const App: React.FC = () => {
                   </div>
                 ))}
               </div>
+              {/* What it does automatically */}
+              <div className="mt-6 w-full max-w-xs">
+                <p className="text-slate-500 font-semibold text-[11px] uppercase tracking-wider mb-2">What it does automatically</p>
+                <div className="flex flex-col gap-1.5 text-xs text-slate-600">
+                  {[
+                    'Strips the host from the URL — only the path goes into the spec',
+                    'Adds all 6 Capillary regional servers (EU, India, APAC, SG, CN, NA) as a dropdown in ReadMe',
+                    'Truncates your Basic Auth token so credentials are never exposed in docs',
+                    'Detects query params, headers, and request body fields automatically',
+                    'Outputs valid OpenAPI 3.0.0 — ready to upload to ReadMe.com',
+                  ].map((note) => (
+                    <div key={note} className="flex items-start gap-2">
+                      <span className="text-emerald-500 shrink-0 mt-0.5">✓</span>
+                      {note}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             /* Output */
