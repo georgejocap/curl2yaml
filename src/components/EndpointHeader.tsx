@@ -56,9 +56,12 @@ const EndpointHeader: React.FC<EndpointHeaderProps> = ({ title, method, path }) 
           <button
             onClick={() => setOpen((o) => !o)}
             className="flex items-center gap-1 text-indigo-400 font-semibold hover:text-indigo-300 transition-colors px-1 py-0.5 rounded hover:bg-slate-700"
-            title="Regional server variable"
+            title="Regional servers included in YAML"
           >
-            &#123;Host&#125;
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
+            </svg>
+            <span className="text-xs">Regions</span>
             <svg
               className={`w-3 h-3 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -71,7 +74,7 @@ const EndpointHeader: React.FC<EndpointHeaderProps> = ({ title, method, path }) 
             <div className="absolute z-50 top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden">
               <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  Regional Servers
+                  All 6 regions included in YAML
                 </p>
               </div>
               {HOSTS.map((h) => (
@@ -83,9 +86,9 @@ const EndpointHeader: React.FC<EndpointHeaderProps> = ({ title, method, path }) 
                   <span className="text-[11px] text-slate-400 font-mono truncate">{h.url}</span>
                 </div>
               ))}
-              <div className="px-4 py-2.5 bg-blue-50 border-t border-blue-100">
-                <p className="text-[10px] text-blue-500 font-semibold">
-                  ReadMe server variable — controls the region dropdown
+              <div className="px-4 py-2.5 bg-emerald-50 border-t border-emerald-100">
+                <p className="text-[10px] text-emerald-600 font-semibold">
+                  ReadMe shows these as a server dropdown — fully editable
                 </p>
               </div>
             </div>
