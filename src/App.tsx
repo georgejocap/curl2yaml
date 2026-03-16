@@ -192,7 +192,7 @@ const App: React.FC = () => {
               </svg>
             </div>
             <div>
-              <p className="text-base font-bold text-slate-900 leading-none">OAS Writer Pro</p>
+              <p className="text-base font-bold text-slate-900 leading-none">Curl to Yaml converter</p>
               <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-0.5">
                 cURL → OpenAPI 3.0
               </p>
@@ -387,7 +387,7 @@ const App: React.FC = () => {
       <footer className="bg-white border-t border-slate-200 px-6 py-2.5">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between">
           <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest">
-            OAS Writer Pro · Capillary Technologies
+            Curl to Yaml converter · Capillary Technologies
           </p>
           <p className="text-[10px] text-slate-400">
             Powered by Gemini AI · {new Date().getFullYear()}
