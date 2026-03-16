@@ -263,7 +263,7 @@ const App: React.FC = () => {
                 </>
               ) : (
                 <>
-                  Convert to OpenAPI
+                  Convert to YAML
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                   </svg>
@@ -333,7 +333,7 @@ const App: React.FC = () => {
                 {[
                   '1. Copy a cURL command from Postman or your browser',
                   '2. Paste it in the box on the left',
-                  '3. Hit Convert — AI generates the OpenAPI YAML',
+                  '3. Hit Convert — AI generates the YAML',
                   '4. Toggle required params in the Parameters table',
                   '5. Add response codes and paste the Postman response body',
                   '6. Click Download YAML to get the file',
@@ -353,7 +353,7 @@ const App: React.FC = () => {
                     'Adds all 6 Capillary regional servers (EU, India, APAC, SG, CN, NA) as a dropdown in ReadMe',
                     'Truncates your Basic Auth token so credentials are never exposed in docs',
                     'Detects query params, headers, and request body fields automatically',
-                    'Outputs valid OpenAPI 3.0.0 — ready to upload to ReadMe.com',
+                    'Outputs valid YAML — ready to upload directly to ReadMe.com',
                   ].map((note) => (
                     <div key={note} className="flex items-start gap-2">
                       <span className="text-emerald-500 shrink-0 mt-0.5">✓</span>
@@ -380,7 +380,7 @@ const App: React.FC = () => {
                 </span>
                 <span className="text-slate-600 text-[10px]">•</span>
                 <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-                  OAS 3.0.0 · ReadMe.com optimised · {modelUsed || 'gemini-2.0-flash'}
+                  ReadMe.com ready · {modelUsed || 'gemini-2.0-flash'}
                 </span>
               </div>
 

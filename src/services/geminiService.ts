@@ -9,18 +9,18 @@ Every field in the output MUST come directly from the cURL. Do NOT invent, guess
 
 ━━━ SERVERS (output exactly, never change) ━━━
 servers:
-  - url: https://eu.intouch.capillarytech.com
-    description: EU
-  - url: https://intouch.capillary.co.in
-    description: India
-  - url: https://apac2.intouch.capillarytech.com
-    description: APAC2
-  - url: https://sgcrm.cc.capillarytech.com
-    description: SG
-  - url: http://intouch.capillarytech.cn.com
-    description: CN
-  - url: https://north-america.intouch.capillarytech.com
-    description: US
+  - url: '{Host}'
+    variables:
+      Host:
+        enum:
+          - '{Host}'
+          - https://eu.intouch.capillarytech.com
+          - https://intouch.capillary.co.in
+          - https://apac2.intouch.capillarytech.com
+          - https://sgcrm.cc.capillarytech.com
+          - http://intouch.capillarytech.cn.com
+          - https://north-america.intouch.capillarytech.com
+        default: '{Host}'
 
 ━━━ PARAMETERS ━━━
 CRITICAL: NEVER place a "headers:" property directly on an operation object. It is NOT valid OpenAPI 3.0 and will fail ReadMe validation.
