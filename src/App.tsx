@@ -193,9 +193,6 @@ const App: React.FC = () => {
             </div>
             <div>
               <p className="text-base font-bold text-slate-900 leading-none">Curl to Yaml converter</p>
-              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-0.5">
-                cURL → OpenAPI 3.0
-              </p>
             </div>
           </div>
 
