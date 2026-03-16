@@ -6,11 +6,10 @@ export const patchYaml = (
   params: CurlParameter[],
   responses: UserDefinedResponse[]
 ): string => {
-  const mandatoryParams = params.filter((p) => p.isMandatory);
   const validResponses = responses.filter((r) => r.statusCode);
 
-  // Nothing to patch — return AI YAML unchanged to preserve ReadMe compatibility
-  if (mandatoryParams.length === 0 && validResponses.length === 0) {
+  // If the user has seen NO params and defined NO responses, preserve AI YAML as-is
+  if (params.length === 0 && validResponses.length === 0) {
     return rawYaml;
   }
 
@@ -35,31 +34,44 @@ export const patchYaml = (
 
   const operation = pathItem[methodKey];
 
-  // ── 1. Mark header/query params as required (only when user toggled ON) ────
-  const mandatoryHeaderQuery = mandatoryParams.filter(
-    (p) => p.location === 'header' || p.location === 'query'
-  );
-  if (mandatoryHeaderQuery.length > 0 && operation.parameters && Array.isArray(operation.parameters)) {
+  // ── 1. Header / query params: checkbox is the ONLY truth ──────────────────
+  // If the user's params table has this param → set required exactly to their checkbox
+  // If not in the table → leave whatever the AI set
+  const headerQueryParams = params.filter((p) => p.location === 'header' || p.location === 'query');
+  if (headerQueryParams.length > 0 && operation.parameters && Array.isArray(operation.parameters)) {
     operation.parameters = operation.parameters.map((opParam: any) => {
-      const hit = mandatoryHeaderQuery.find(
+      const userParam = headerQueryParams.find(
         (p) => p.name.toLowerCase() === (opParam.name ?? '').toLowerCase()
       );
-      if (hit) opParam.required = true;
+      if (userParam !== undefined) {
+        opParam.required = userParam.isMandatory === true;
+      }
       return opParam;
     });
   }
 
-  // ── 2. Add mandatory body fields to schema.required ────────────────────────
-  const mandatoryBody = mandatoryParams.filter(
-    (p) => p.location === 'body' && p.name !== '$root' && !p.name.includes('.') && !p.name.includes('[]')
+  // ── 2. Body params: build schema.required from ONLY the checked fields ─────
+  const topLevelBodyParams = params.filter(
+    (p) =>
+      p.location === 'body' &&
+      p.name !== '$root' &&
+      !p.name.includes('.') &&
+      !p.name.includes('[]')
   );
-  if (mandatoryBody.length > 0 && operation.requestBody?.content) {
+  if (topLevelBodyParams.length > 0 && operation.requestBody?.content) {
     for (const ck of Object.keys(operation.requestBody.content)) {
       const schema = operation.requestBody.content[ck]?.schema;
       if (!schema) continue;
-      if (!schema.required) schema.required = [];
-      for (const p of mandatoryBody) {
-        if (!schema.required.includes(p.name)) schema.required.push(p.name);
+
+      // Replace schema.required entirely with what the user checked
+      const mandatoryNames = topLevelBodyParams
+        .filter((p) => p.isMandatory === true)
+        .map((p) => p.name);
+
+      if (mandatoryNames.length > 0) {
+        schema.required = mandatoryNames;
+      } else {
+        delete schema.required; // nothing checked → no required array
       }
     }
   }
