@@ -39,7 +39,14 @@ servers:
   - url: '{Host}'
     variables:
       Host:
-        default: '{Host}'
+        enum:
+          - https://eu.intouch.capillarytech.com
+          - https://intouch.capillary.co.in
+          - https://apac2.intouch.capillarytech.com
+          - https://sgcrm.cc.capillarytech.com
+          - http://intouch.capillarytech.cn.com
+          - https://north-america.intouch.capillarytech.com
+        default: https://eu.intouch.capillarytech.com
 
 ━━━ PARAMETERS ━━━
 CRITICAL: NEVER place a "headers:" property directly on an operation object. It is NOT valid OpenAPI 3.0 and will fail ReadMe validation.
