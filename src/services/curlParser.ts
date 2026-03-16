@@ -20,49 +20,19 @@ const inferType = (value: any): string => {
   return 'string';
 };
 
-const extractBodyParamsRecursively = (
-  currentValue: any,
-  currentPath: string,
-  params: CurlParameter[]
-): void => {
-  const paramId = `body-${currentPath.replace(/\[\].$/g, '[].').replace(/\.$/, '')}`;
-
-  if (currentValue === null || currentValue === undefined || typeof currentValue !== 'object') {
+/** Extracts only the immediate top-level keys from the body — no nesting. */
+const extractTopLevelBodyParams = (body: Record<string, any>, params: CurlParameter[]): void => {
+  Object.entries(body).forEach(([key, value]) => {
     params.push({
-      id: paramId,
-      name: currentPath,
-      value: currentValue,
-      exampleValue: currentValue,
-      inferredType: inferType(currentValue),
+      id: `body-${key}`,
+      name: key,
+      value,
+      exampleValue: value,
+      inferredType: inferType(value),
       location: 'body',
       isMandatory: false,
     });
-    return;
-  }
-
-  if (Array.isArray(currentValue)) {
-    params.push({
-      id: paramId,
-      name: currentPath,
-      value: currentValue,
-      exampleValue: currentValue,
-      inferredType: 'array',
-      location: 'body',
-      isMandatory: false,
-    });
-    if (currentValue.length > 0) {
-      extractBodyParamsRecursively(currentValue[0], `${currentPath}[]`, params);
-    }
-  } else {
-    Object.entries(currentValue).forEach(([key, value]) => {
-      const newPath = currentPath
-        ? currentPath.endsWith('[]')
-          ? `${currentPath}.${key}`
-          : `${currentPath}.${key}`
-        : key;
-      extractBodyParamsRecursively(value, newPath, params);
-    });
-  }
+  });
 };
 
 export const parseCurl = (curlCommand: string): ParsedCurlData => {
@@ -189,8 +159,18 @@ export const parseCurl = (curlCommand: string): ParsedCurlData => {
           result.body = parsedJson;
           result.contentType = result.contentType || 'application/json';
 
-          if (typeof parsedJson === 'object' && parsedJson !== null) {
-            extractBodyParamsRecursively(parsedJson, '', result.bodyParams);
+          if (typeof parsedJson === 'object' && parsedJson !== null && !Array.isArray(parsedJson)) {
+            extractTopLevelBodyParams(parsedJson, result.bodyParams);
+          } else if (Array.isArray(parsedJson)) {
+            result.bodyParams.push({
+              id: 'body-$root',
+              name: '$root',
+              value: parsedJson,
+              exampleValue: parsedJson,
+              inferredType: 'array',
+              location: 'body',
+              isMandatory: false,
+            });
           } else {
             result.bodyParams.push({
               id: 'body-$root',
