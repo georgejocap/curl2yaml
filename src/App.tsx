@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { convertCurlToOpenAPI } from './services/geminiService';
 import { parseCurl } from './services/curlParser';
 import { patchYaml } from './services/yamlPatcher';
@@ -44,6 +44,28 @@ const App: React.FC = () => {
 
   const hasOutput = !!yamlOutput;
 
+  // Auto-parse cURL as user types/pastes — populates params before Convert is clicked
+  useEffect(() => {
+    if (!curlInput.trim()) {
+      setAllParams([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      try {
+        const { queryParams, headers, bodyParams } = parseCurl(curlInput);
+        const combined: CurlParameter[] = [
+          ...queryParams,
+          ...headers,
+          ...bodyParams.filter((p) => p.name !== ''),
+        ];
+        setAllParams(combined);
+      } catch {
+        // ignore parse errors silently
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [curlInput]);
+
   // ── Convert ────────────────────────────────────────────────────────────────
   const handleConvert = useCallback(async () => {
     if (!curlInput.trim()) {
@@ -56,36 +78,22 @@ const App: React.FC = () => {
     setYamlOutput('');
     setDetails('');
     setModelUsed('');
-    setAllParams([]);
 
-    // Run AI conversion + local parser in parallel
-    const [aiRes, parseRes] = await Promise.allSettled([
-      convertCurlToOpenAPI(curlInput),
-      Promise.resolve().then(() => parseCurl(curlInput)),
-    ]);
+    const mandatory = allParams
+      .filter((p) => p.isMandatory)
+      .map((p) => ({ name: p.name, location: p.location }));
 
-    setIsConverting(false);
-
-    if (aiRes.status === 'fulfilled') {
-      setYamlOutput(aiRes.value.yaml);
-      setDetails(aiRes.value.details);
-      setModelUsed(aiRes.value.modelUsed);
-    } else {
-      setConvertError(
-        (aiRes.reason as Error)?.message ?? 'Conversion failed. Please try again.'
-      );
+    try {
+      const result = await convertCurlToOpenAPI(curlInput, mandatory);
+      setYamlOutput(result.yaml);
+      setDetails(result.details);
+      setModelUsed(result.modelUsed);
+    } catch (err) {
+      setConvertError((err as Error)?.message ?? 'Conversion failed. Please try again.');
+    } finally {
+      setIsConverting(false);
     }
-
-    if (parseRes.status === 'fulfilled') {
-      const { queryParams, headers, bodyParams } = parseRes.value;
-      const combined: CurlParameter[] = [
-        ...queryParams,
-        ...headers,
-        ...bodyParams.filter((p) => p.name !== ''),
-      ];
-      setAllParams(combined);
-    }
-  }, [curlInput]);
+  }, [curlInput, allParams]);
 
   // ── Params ─────────────────────────────────────────────────────────────────
   const handleToggleParam = (id: string, mandatory: boolean) => {
@@ -286,7 +294,7 @@ const App: React.FC = () => {
                   <p className="text-xs text-slate-400 italic px-1">
                     {hasOutput
                       ? 'No parameters detected.'
-                      : 'Parameters appear here after conversion.'}
+                      : 'Parameters appear here as you type your cURL.'}
                   </p>
                 ) : (
                   <ParametersTable params={allParams} onToggle={handleToggleParam} />
@@ -332,9 +340,9 @@ const App: React.FC = () => {
               <div className="flex flex-col gap-2 text-xs text-slate-500 mt-2 text-left">
                 {[
                   '1. Copy a cURL command from Postman or your browser',
-                  '2. Paste it in the box on the left',
-                  '3. Hit Convert — AI generates the YAML',
-                  '4. Toggle required params in the Parameters table',
+                  '2. Paste it in the box on the left — params auto-populate instantly',
+                  '3. Check which params are mandatory in the Parameters table',
+                  '4. Hit Convert — AI generates the YAML with your required selections baked in',
                   '5. Add response codes and paste the Postman response body',
                   '6. Click Download YAML to get the file',
                 ].map((f) => (

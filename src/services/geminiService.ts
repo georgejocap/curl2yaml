@@ -87,6 +87,15 @@ An operation may only have these properties: tags, summary, description, operati
 NEVER add any other top-level property to an operation (no "headers:", no "host:", no "baseUrl:", no "consumes:", no "produces:").
 operationId: camelCase, unique, under 30 characters, derived from method + path (e.g. "getCustomerPoints").
 
+━━━ REQUIRED FIELDS (user-controlled, not AI judgment) ━━━
+The user message may end with a line like:
+  [USER-REQUIRED: paramName1 (header), paramName2 (body)]
+If present:
+- Those exact parameter names MUST have required: true
+- Every other parameter MUST have required: false
+- You MUST NOT use your own judgment to decide what is required — only follow this list
+If no [USER-REQUIRED: ...] line is present, set ALL parameters to required: false.
+
 ━━━ OUTPUT FORMAT ━━━
 1. Output the complete YAML inside a \`\`\`yaml ... \`\`\` code block
 2. Follow with "Analysis Summary" containing exactly three bullet points:
@@ -135,13 +144,20 @@ const getLatestFreeModel = async (apiKey: string): Promise<string> => {
 };
 
 export const convertCurlToOpenAPI = async (
-  curlCommand: string
+  curlCommand: string,
+  requiredParams: Array<{ name: string; location: string }> = []
 ): Promise<{ yaml: string; details: string; modelUsed: string }> => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured.');
 
   // Clean malformed double-protocol URLs
   const cleanedCurl = curlCommand.replace(/(https?:\/\/)(?:https?:\/\/|https?\/)/gi, '$1');
+
+  let userMessage = cleanedCurl;
+  if (requiredParams.length > 0) {
+    const list = requiredParams.map(p => `${p.name} (${p.location})`).join(', ');
+    userMessage += `\n\n[USER-REQUIRED: ${list}]`;
+  }
 
   const model = await getLatestFreeModel(apiKey);
   const endpoint = `${BASE_URL}/models/${model}:generateContent?key=${apiKey}`;
@@ -151,7 +167,7 @@ export const convertCurlToOpenAPI = async (
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-      contents: [{ parts: [{ text: cleanedCurl }] }],
+      contents: [{ parts: [{ text: userMessage }] }],
       generationConfig: { temperature: 0.1 },
     }),
   });
