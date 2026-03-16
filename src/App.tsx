@@ -330,20 +330,19 @@ const App: React.FC = () => {
                 </svg>
               </div>
               <div className="text-center">
-                <p className="text-slate-400 font-semibold text-sm">Ready for conversion</p>
-                <p className="text-slate-600 text-xs mt-1">
-                  Paste a cURL command and click Convert
-                </p>
+                <p className="text-slate-400 font-semibold text-sm">How to use</p>
               </div>
-              <div className="flex flex-col gap-2 text-xs text-slate-600 mt-2">
+              <div className="flex flex-col gap-2 text-xs text-slate-500 mt-2 text-left">
                 {[
-                  'ReadMe.com-ready OpenAPI 3.0.0 YAML',
-                  'Capillary regional server variables',
-                  'Mark parameters as required',
-                  'Define custom response descriptions',
+                  '1. Copy a cURL command from Postman or your browser',
+                  '2. Paste it in the box on the left',
+                  '3. Hit Convert — AI generates the OpenAPI YAML',
+                  '4. Toggle required params in the Parameters table',
+                  '5. Add response codes and paste the Postman response body',
+                  '6. Click Download YAML to get the file',
                 ].map((f) => (
-                  <div key={f} className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                  <div key={f} className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1" />
                     {f}
                   </div>
                 ))}
