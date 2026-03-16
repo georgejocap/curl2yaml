@@ -33,13 +33,7 @@ const Editor: React.FC<EditorProps> = ({
     return (
       <div className="flex flex-col h-full">
         {/* Toolbar */}
-        <div className="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700 rounded-t-xl">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-red-500/70" />
-            <span className="w-3 h-3 rounded-full bg-yellow-500/70" />
-            <span className="w-3 h-3 rounded-full bg-green-500/70" />
-            <span className="ml-2 text-xs font-mono text-slate-400">openapi.yaml</span>
-          </div>
+        <div className="flex items-center justify-end px-4 py-2 bg-slate-800 border-b border-slate-700 rounded-t-xl">
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopy}

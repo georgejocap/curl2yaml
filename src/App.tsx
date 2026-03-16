@@ -426,18 +426,6 @@ const App: React.FC = () => {
                 path={extracted.path}
               />
 
-              {/* Status bar */}
-              <div className="flex items-center gap-3 px-6 py-2 bg-slate-800 border-b border-slate-700">
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  AI Generated
-                </span>
-                <span className="text-slate-600 text-[10px]">•</span>
-                <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-                  ReadMe.com ready · {modelUsed || 'gemini-2.0-flash'}
-                </span>
-              </div>
-
               {/* YAML Editor */}
               <div className="flex-1 min-h-0">
                 <Editor
