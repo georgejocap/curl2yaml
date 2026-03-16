@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [responses, setResponses] = useState<UserDefinedResponse[]>([]);
   const [paramsOpen, setParamsOpen] = useState(true);
   const [responsesOpen, setResponsesOpen] = useState(true);
+  const [showMandatoryWarning, setShowMandatoryWarning] = useState(false);
 
   // ── Derived: extract title / method / path from Grok analysis summary ──
   const extracted = useMemo(() => {
@@ -66,13 +67,9 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, [curlInput]);
 
-  // ── Convert ────────────────────────────────────────────────────────────────
-  const handleConvert = useCallback(async () => {
-    if (!curlInput.trim()) {
-      setConvertError('Please paste a cURL command first.');
-      return;
-    }
-
+  // ── Convert (inner — bypasses mandatory check) ────────────────────────────
+  const doConvert = useCallback(async () => {
+    setShowMandatoryWarning(false);
     setIsConverting(true);
     setConvertError(null);
     setYamlOutput('');
@@ -95,8 +92,24 @@ const App: React.FC = () => {
     }
   }, [curlInput, allParams]);
 
+  // ── Convert (gate — shows warning if no mandatory params chosen) ───────────
+  const handleConvert = useCallback(async () => {
+    if (!curlInput.trim()) {
+      setConvertError('Please paste a cURL command first.');
+      return;
+    }
+    // If params are loaded but none marked mandatory, pause and warn
+    if (allParams.length > 0 && allParams.every((p) => !p.isMandatory)) {
+      setShowMandatoryWarning(true);
+      setParamsOpen(true); // make sure params section is visible
+      return;
+    }
+    await doConvert();
+  }, [curlInput, allParams, doConvert]);
+
   // ── Params ─────────────────────────────────────────────────────────────────
   const handleToggleParam = (id: string, mandatory: boolean) => {
+    if (mandatory) setShowMandatoryWarning(false);
     setAllParams((prev) => prev.map((p) => (p.id === id ? { ...p, isMandatory: mandatory } : p)));
   };
 
@@ -151,6 +164,7 @@ const App: React.FC = () => {
     setConvertError(null);
     setAllParams([]);
     setResponses([]);
+    setShowMandatoryWarning(false);
   };
 
   // ── Section header helper ──────────────────────────────────────────────────
@@ -258,7 +272,9 @@ const App: React.FC = () => {
               className={`mt-3 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold transition-all
                 ${isConverting
                   ? 'bg-slate-100 text-slate-400 cursor-wait'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-200 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]'
+                  : showMandatoryWarning
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-200 animate-pulse'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-200 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]'
                 }`}
             >
               {isConverting ? (
@@ -281,13 +297,43 @@ const App: React.FC = () => {
           </div>
 
           {/* Parameters */}
-          <div className="p-5 border-b border-slate-100">
-            <SectionHeader
-              label="Parameters"
-              count={allParams.length}
-              open={paramsOpen}
-              onToggle={() => setParamsOpen((o) => !o)}
-            />
+          <div className={`p-5 border-b transition-all duration-300 ${showMandatoryWarning ? 'border-amber-300 bg-amber-50' : 'border-slate-100'}`}>
+            <div className={`rounded-lg transition-all duration-300 ${showMandatoryWarning ? 'ring-2 ring-amber-400 ring-offset-1 rounded-lg px-2 -mx-2' : ''}`}>
+              <SectionHeader
+                label="Parameters"
+                count={allParams.length}
+                open={paramsOpen}
+                onToggle={() => setParamsOpen((o) => !o)}
+              />
+            </div>
+
+            {/* Mandatory warning banner */}
+            {showMandatoryWarning && (
+              <div className="mt-2 mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3">
+                <div className="flex items-start gap-2 mb-2.5">
+                  <span className="text-amber-500 text-base leading-none mt-0.5">⚠️</span>
+                  <p className="text-xs font-semibold text-amber-800 leading-snug">
+                    No parameters marked as required.<br />
+                    <span className="font-normal text-amber-700">Check the boxes above for any fields your API needs.</span>
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={doConvert}
+                    className="flex-1 text-[11px] font-bold px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors"
+                  >
+                    No required params — generate anyway
+                  </button>
+                  <button
+                    onClick={() => setShowMandatoryWarning(false)}
+                    className="text-[11px] font-semibold px-3 py-2 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
+                  >
+                    Let me check
+                  </button>
+                </div>
+              </div>
+            )}
+
             {paramsOpen && (
               <div className="mt-2">
                 {allParams.length === 0 ? (
