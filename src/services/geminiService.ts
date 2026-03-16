@@ -36,17 +36,17 @@ Every field in the output MUST come directly from the cURL. Do NOT invent, guess
 
 ━━━ SERVERS (output exactly, never change) ━━━
 servers:
-  - url: '{Host}'
+  - url: 'https://{Host}'
     variables:
       Host:
         enum:
-          - https://eu.intouch.capillarytech.com
-          - https://intouch.capillary.co.in
-          - https://apac2.intouch.capillarytech.com
-          - https://sgcrm.cc.capillarytech.com
-          - http://intouch.capillarytech.cn.com
-          - https://north-america.intouch.capillarytech.com
-        default: https://eu.intouch.capillarytech.com
+          - eu.intouch.capillarytech.com
+          - intouch.capillary.co.in
+          - apac2.intouch.capillarytech.com
+          - sgcrm.cc.capillarytech.com
+          - intouch.capillarytech.cn.com
+          - north-america.intouch.capillarytech.com
+        default: eu.intouch.capillarytech.com
 
 ━━━ PARAMETERS ━━━
 CRITICAL: NEVER place a "headers:" property directly on an operation object. It is NOT valid OpenAPI 3.0 and will fail ReadMe validation.
