@@ -39,14 +39,6 @@ servers:
   - url: '{Host}'
     variables:
       Host:
-        enum:
-          - '{Host}'
-          - https://eu.intouch.capillarytech.com
-          - https://intouch.capillary.co.in
-          - https://apac2.intouch.capillarytech.com
-          - https://sgcrm.cc.capillarytech.com
-          - http://intouch.capillarytech.cn.com
-          - https://north-america.intouch.capillarytech.com
         default: '{Host}'
 
 ━━━ PARAMETERS ━━━
