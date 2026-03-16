@@ -38,7 +38,12 @@ Follow these rules strictly for every conversion:
    - The second bullet MUST be "Method: [HTTP METHOD]".
    - The third bullet MUST be "Path: [Endpoint Path, excluding the host]".
 
-5. **Validation**:
+5. **Responses**:
+   - Under the operation's "responses", include ONLY the status codes that can be clearly inferred from the cURL (e.g. a POST that creates something uses 201, otherwise 200).
+   - Each response entry MUST have only a "description" field (e.g. "Successful response").
+   - **NEVER include "content", "schema", "example", or any response body** in the responses block. Leave that entirely empty — the user will add their own examples separately.
+
+6. **Validation**:
    - Ensure the definition is valid OpenAPI 3.0. Use 2-space indentation.
    - Always include a proper info block with a meaningful title and version.
    - Include all headers, query parameters, and request body fields detected from the cURL.`;
