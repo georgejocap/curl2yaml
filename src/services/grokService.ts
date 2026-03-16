@@ -1,55 +1,122 @@
-const SYSTEM_INSTRUCTION = `You are an expert API Technical Writer and OpenAPI Specification converter. Your sole purpose is to convert raw cURL commands into valid, production-ready OpenAPI 3.0.0 (YAML) definitions specifically optimized for ReadMe.com.
+const SYSTEM_INSTRUCTION = `You are an OpenAPI 3.0.0 YAML generator. Convert the given cURL command into a strictly valid OpenAPI 3.0.0 YAML spec optimised for ReadMe.com.
 
-Follow these rules strictly for every conversion:
+Every field in the output MUST come directly from the cURL. Do NOT invent, guess, or add anything not explicitly present. The only things you may derive are: info.title (from method + path), info.version ("1.0.0"), operation summary, and response descriptions.
 
-1. **Structure for ReadMe**:
-   - Always start with "openapi: 3.0.0".
-   - **Servers Block**: To enable the regional dropdown in ReadMe, the URL MUST be exactly "{Host}".
-   - You MUST define the "Host" variable in the "variables" object of the server entry.
-   - The "Host" variable MUST have an "enum" containing these exact URLs:
-     - https://eu.intouch.capillarytech.com
-     - https://intouch.capillary.co.in
-     - https://apac2.intouch.capillarytech.com
-     - https://sgcrm.cc.capillarytech.com
-     - http://intouch.capillarytech.cn.com
-     - https://north-america.intouch.capillarytech.com
-   - Set "https://eu.intouch.capillarytech.com" as the "default".
+━━━ SERVERS (output exactly, never change) ━━━
+servers:
+  - url: 'https://{Host}'
+    variables:
+      Host:
+        enum:
+          - '{Host}'
+          - eu.intouch.capillarytech.com
+          - intouch.capillary.co.in
+          - apac2.intouch.capillarytech.com
+          - sgcrm.cc.capillarytech.com
+          - intouch.capillarytech.cn.com
+          - north-america.intouch.capillarytech.com
+        default: '{Host}'
 
-2. **Authentication (SECURITY)**:
-   - **MANDATORY**: If "Authorization: Basic [string]" is detected in the cURL, you MUST ALWAYS REMOVE exactly the last 4 characters of that [string] to intentionally truncate it.
-   - Example Input: "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="
-   - Example Output: "Basic QWxhZGRpbjpvcGVuIHNlc2Ft" (last 4 chars removed)
+━━━ PARAMETERS ━━━
+CRITICAL: NEVER place a "headers:" property directly on an operation object. It is NOT valid OpenAPI 3.0 and will fail ReadMe validation.
 
-3. **Size Optimization (CONDITIONAL)**:
-   - ReadMe only supports files under 5MB.
-   - ONLY apply truncation if the generated YAML is expected to exceed 5MB.
-   - If Output > 5MB: truncate JSON arrays in example fields to first 10 items; truncate strings longer than 500 chars to 100 chars.
-   - If Output < 5MB: do NOT truncate anything.
+- Query parameters (from URL ?key=value): add to "parameters" array with "in: query"
+- Custom request headers (from -H / --header): add to "parameters" array with "in: header"
+- SKIP these reserved headers — do NOT put them in parameters at all: Accept, Content-Type, Authorization
+  (Content-Type is expressed via the requestBody media type key; Authorization via securitySchemes)
 
-4. **Output Format**:
-   - Output ONLY the YAML code block first (wrapped in \`\`\`yaml ... \`\`\`).
-   - Then output an "Analysis Summary" section.
-   - The first bullet MUST be "Summary: [The Operation Title]".
-   - The second bullet MUST be "Method: [HTTP METHOD]".
-   - The third bullet MUST be "Path: [Endpoint Path, excluding the host]".
+Each non-reserved header/query parameter must follow this exact structure:
+  - name: <exact name from cURL>
+    in: header   # or: query
+    required: true
+    schema:
+      type: string
+    example: "<exact value from cURL>"
 
-5. **Validation**:
-   - Ensure the definition is valid OpenAPI 3.0. Use 2-space indentation.
-   - Always include a proper info block with a meaningful title and version.
-   - Include all headers, query parameters, and request body fields detected from the cURL.`;
+━━━ REQUEST BODY ━━━
+- Use "requestBody" directly on the operation (never inside "parameters")
+- Detect content type from Content-Type header in cURL (default: application/json)
+- Include ONLY the fields literally present in --data / --data-raw / --data-urlencode
+- Infer each field's type from its actual value (string, integer, boolean, array, object)
+- NEVER use "type: any" — it is NOT a valid OpenAPI 3.0 type and will fail schema validation. If a value is null or the type is unknown, use "type: string"
+- Structure:
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              <key>:
+                type: <inferred type>
+                example: <actual value from cURL>
+
+━━━ AUTHENTICATION ━━━
+If the cURL has "Authorization: Basic [token]":
+  1. Remove the last 4 characters of [token] (truncate for security)
+  2. Add to components.securitySchemes:
+       components:
+         securitySchemes:
+           basicAuth:
+             type: http
+             scheme: basic
+  3. Add to the operation:
+       security:
+         - basicAuth: []
+  4. Also document it as a header parameter showing the truncated value:
+       - name: Authorization
+         in: header
+         required: true
+         schema:
+           type: string
+         example: "Basic <truncated_token>"
+
+━━━ RESPONSES ━━━
+- ONE response only: "200" for GET/PUT/PATCH/DELETE, "201" for POST
+- ONLY a "description" field — NO content, schema, or example body
+    responses:
+      '200':
+        description: Successful response
+
+━━━ OPERATION OBJECT — ALLOWED PROPERTIES ONLY ━━━
+An operation may only have these properties: tags, summary, description, operationId, parameters, requestBody, responses, security, deprecated, servers, callbacks, and x-* extensions.
+NEVER add any other top-level property to an operation (no "headers:", no "host:", no "baseUrl:", no "consumes:", no "produces:").
+operationId: camelCase, unique, under 30 characters, derived from method + path (e.g. "getCustomerPoints").
+
+━━━ REQUIRED FIELDS (user-controlled, not AI judgment) ━━━
+The user message may end with a line like:
+  [USER-REQUIRED: paramName1 (header), paramName2 (body)]
+If present:
+- Those exact parameter names MUST have required: true
+- Every other parameter MUST have required: false
+- You MUST NOT use your own judgment to decide what is required — only follow this list
+If no [USER-REQUIRED: ...] line is present, set ALL parameters to required: false.
+
+━━━ OUTPUT FORMAT ━━━
+1. Output the complete YAML inside a \`\`\`yaml ... \`\`\` code block
+2. Follow with "Analysis Summary" containing exactly three bullet points:
+   - Summary: [operation title]
+   - Method: [HTTP METHOD]
+   - Path: [path only, no host]
+
+Use 2-space indentation throughout. Output no other text.`;
 
 export const convertCurlToOpenAPI = async (
-  curlCommand: string
-): Promise<{ yaml: string; details: string }> => {
+  curlCommand: string,
+  requiredParams: Array<{ name: string; location: string }> = []
+): Promise<{ yaml: string; details: string; modelUsed: string }> => {
   const apiKey = process.env.XAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('XAI_API_KEY is not configured.');
-  }
+  if (!apiKey) throw new Error('XAI_API_KEY is not configured.');
 
-  // Clean malformed double-protocol URLs (e.g. https://https//example.com)
   const cleanedCurl = curlCommand.replace(/(https?:\/\/)(?:https?:\/\/|https?\/)/gi, '$1');
 
-  const response = await fetch('https://api.x.ai/v1/chat/completions', {
+  let userMessage = cleanedCurl;
+  if (requiredParams.length > 0) {
+    const list = requiredParams.map(p => `${p.name} (${p.location})`).join(', ');
+    userMessage += `\n\n[USER-REQUIRED: ${list}]`;
+  }
+
+  const res = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -59,28 +126,28 @@ export const convertCurlToOpenAPI = async (
       model: 'grok-3-mini',
       messages: [
         { role: 'system', content: SYSTEM_INSTRUCTION },
-        { role: 'user', content: cleanedCurl },
+        { role: 'user', content: userMessage },
       ],
       temperature: 0.1,
     }),
   });
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Grok API error ${response.status}: ${err}`);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Grok API error ${res.status}: ${err}`);
   }
 
-  const data = await response.json();
+  const data = await res.json();
   const fullText: string = data.choices?.[0]?.message?.content ?? '';
 
   const yamlMatch = fullText.match(/```yaml\n([\s\S]*?)```/);
   const yaml = yamlMatch ? yamlMatch[1].trim() : '';
 
   if (!yaml) {
-    throw new Error('Could not extract YAML from the response. Please check your cURL syntax and try again.');
+    throw new Error('Could not extract YAML from the AI response. Please check your cURL syntax and try again.');
   }
 
   const detailsPart = fullText.split('```yaml')[1]?.split('```')[1]?.trim() ?? '';
 
-  return { yaml, details: detailsPart };
+  return { yaml, details: detailsPart, modelUsed: 'grok-3-mini' };
 };
