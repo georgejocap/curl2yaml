@@ -20,19 +20,36 @@ const inferType = (value: any): string => {
   return 'string';
 };
 
-/** Extracts only the immediate top-level keys from the body — no nesting. */
-const extractTopLevelBodyParams = (body: Record<string, any>, params: CurlParameter[]): void => {
-  Object.entries(body).forEach(([key, value]) => {
-    params.push({
-      id: `body-${key}`,
-      name: key,
-      value,
-      exampleValue: value,
-      inferredType: inferType(value),
-      location: 'body',
-      isMandatory: false,
-    });
-  });
+/**
+ * Recursively extracts body params, but displays only the simple key name
+ * (not the full dotted path). The full path is kept in `id` for uniqueness.
+ *
+ * For an array, the first item's keys are recursed into so fields like
+ * `parts`, `text`, `role` appear in the table without path prefixes.
+ */
+const extractBodyParams = (body: Record<string, any>, params: CurlParameter[]): void => {
+  const recurse = (value: any, path: string, displayName: string): void => {
+    const id = `body-${path}`;
+
+    if (value === null || value === undefined || typeof value !== 'object') {
+      params.push({ id, name: displayName, value, exampleValue: value, inferredType: inferType(value), location: 'body', isMandatory: false });
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      params.push({ id, name: displayName, value, exampleValue: value, inferredType: 'array', location: 'body', isMandatory: false });
+      if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null && !Array.isArray(value[0])) {
+        Object.entries(value[0]).forEach(([k, v]) => recurse(v, `${path}[].${k}`, k));
+      }
+      return;
+    }
+
+    // Object — add itself then recurse into children
+    params.push({ id, name: displayName, value, exampleValue: value, inferredType: 'object', location: 'body', isMandatory: false });
+    Object.entries(value).forEach(([k, v]) => recurse(v, `${path}.${k}`, k));
+  };
+
+  Object.entries(body).forEach(([key, value]) => recurse(value, key, key));
 };
 
 export const parseCurl = (curlCommand: string): ParsedCurlData => {
@@ -160,7 +177,7 @@ export const parseCurl = (curlCommand: string): ParsedCurlData => {
           result.contentType = result.contentType || 'application/json';
 
           if (typeof parsedJson === 'object' && parsedJson !== null && !Array.isArray(parsedJson)) {
-            extractTopLevelBodyParams(parsedJson, result.bodyParams);
+            extractBodyParams(parsedJson, result.bodyParams);
           } else if (Array.isArray(parsedJson)) {
             result.bodyParams.push({
               id: 'body-$root',
