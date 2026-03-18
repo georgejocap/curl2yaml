@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { convertCurlToOpenAPI } from './services/grokService';
+import { convertCurlToOpenAPI } from './services/geminiService';
 import { parseCurl } from './services/curlParser';
 import { patchYaml } from './services/yamlPatcher';
 import Editor from './components/Editor';
