@@ -101,7 +101,7 @@ If the cURL has "Authorization: Basic [token]":
          required: true
          schema:
            type: string
-         example: "Basic <your-token>"
+         example: "Basic XXXXXXXXXXXXXXXXXXXX"
 
 ━━━ RESPONSES ━━━
 - ONE response only: "200" for GET/PUT/PATCH/DELETE, "201" for POST
