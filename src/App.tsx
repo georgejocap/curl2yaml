@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [paramsOpen, setParamsOpen] = useState(true);
   const [responsesOpen, setResponsesOpen] = useState(true);
   const [showMandatoryWarning, setShowMandatoryWarning] = useState(false);
+  const [showResponseWarning, setShowResponseWarning] = useState(false);
 
   // ── Derived: extract title / method / path from Grok analysis summary ──
   const extracted = useMemo(() => {
@@ -119,6 +120,7 @@ const App: React.FC = () => {
 
   // ── Responses ──────────────────────────────────────────────────────────────
   const handleAddResponse = () => {
+    setShowResponseWarning(false);
     setResponses((prev) => [
       ...prev,
       { id: crypto.randomUUID(), statusCode: '', description: '', contentType: 'application/json', bodyExample: '' },
@@ -138,8 +140,9 @@ const App: React.FC = () => {
   };
 
   // ── Download ───────────────────────────────────────────────────────────────
-  const handleDownload = () => {
+  const doDownload = () => {
     if (!yamlOutput) return;
+    setShowResponseWarning(false);
     const patched = patchYaml(yamlOutput, allParams, responses);
     const fileName = (extracted.title || 'openapi-spec')
       .toLowerCase()
@@ -160,6 +163,16 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownload = () => {
+    if (!yamlOutput) return;
+    if (responses.length === 0) {
+      setShowResponseWarning(true);
+      setResponsesOpen(true);
+      return;
+    }
+    doDownload();
+  };
+
   // ── Clear ──────────────────────────────────────────────────────────────────
   const handleClear = () => {
     setCurlInput('');
@@ -169,6 +182,7 @@ const App: React.FC = () => {
     setAllParams([]);
     setResponses([]);
     setShowMandatoryWarning(false);
+    setShowResponseWarning(false);
   };
 
   // ── Section header helper ──────────────────────────────────────────────────
@@ -354,13 +368,43 @@ const App: React.FC = () => {
           </div>
 
           {/* Responses */}
-          <div className="p-5">
-            <SectionHeader
-              label="Responses"
-              count={responses.length}
-              open={responsesOpen}
-              onToggle={() => setResponsesOpen((o) => !o)}
-            />
+          <div className={`p-5 transition-all duration-300 ${showResponseWarning ? 'border border-amber-300 bg-amber-50 rounded-xl mx-3 mb-3' : ''}`}>
+            <div className={`rounded-lg transition-all duration-300 ${showResponseWarning ? 'ring-2 ring-amber-400 ring-offset-1 rounded-lg px-2 -mx-2' : ''}`}>
+              <SectionHeader
+                label="Responses"
+                count={responses.length}
+                open={responsesOpen}
+                onToggle={() => setResponsesOpen((o) => !o)}
+              />
+            </div>
+
+            {/* Response warning banner */}
+            {showResponseWarning && (
+              <div className="mt-2 mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3">
+                <div className="flex items-start gap-2 mb-2.5">
+                  <span className="text-amber-500 text-base leading-none mt-0.5">⚠️</span>
+                  <p className="text-xs font-semibold text-amber-800 leading-snug">
+                    No response codes added.<br />
+                    <span className="font-normal text-amber-700">Adding a response helps ReadMe show the right status codes in your docs.</span>
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={doDownload}
+                    className="flex-1 text-[11px] font-bold px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors"
+                  >
+                    Skip — download without responses
+                  </button>
+                  <button
+                    onClick={() => setShowResponseWarning(false)}
+                    className="text-[11px] font-semibold px-3 py-2 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
+                  >
+                    Let me add
+                  </button>
+                </div>
+              </div>
+            )}
+
             {responsesOpen && (
               <div className="mt-2">
                 <ResponseDefinitionForm
