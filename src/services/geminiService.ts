@@ -85,7 +85,7 @@ Each non-reserved header/query parameter must follow this exact structure:
 
 ━━━ AUTHENTICATION ━━━
 If the cURL has "Authorization: Basic [token]":
-  1. Remove the last 4 characters of [token] (truncate for security)
+  1. NEVER include the real token or any part of it anywhere in the YAML output
   2. Add to components.securitySchemes:
        components:
          securitySchemes:
@@ -95,13 +95,13 @@ If the cURL has "Authorization: Basic [token]":
   3. Add to the operation:
        security:
          - basicAuth: []
-  4. Also document it as a header parameter showing the truncated value:
+  4. Document it as a header parameter with a safe placeholder — never the real value:
        - name: Authorization
          in: header
          required: true
          schema:
            type: string
-         example: "Basic <truncated_token>"
+         example: "Basic <your-token>"
 
 ━━━ RESPONSES ━━━
 - ONE response only: "200" for GET/PUT/PATCH/DELETE, "201" for POST
