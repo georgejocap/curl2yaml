@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { convertCurlToOpenAPI } from './services/geminiService';
 import { parseCurl } from './services/curlParser';
 import { patchYaml } from './services/yamlPatcher';
@@ -6,7 +6,13 @@ import Editor from './components/Editor';
 import EndpointHeader from './components/EndpointHeader';
 import ParametersTable from './components/ParametersTable';
 import ResponseDefinitionForm from './components/ResponseDefinitionForm';
+import PreConvertModal from './components/PreConvertModal';
 import type { CurlParameter, UserDefinedResponse } from './types';
+
+interface PreConvertWarning {
+  noMandatoryParams: boolean;
+  noResponses: boolean;
+}
 
 const EXAMPLE_CURL = `curl --location 'https://eu.intouch.capillarytech.com/v2/product/brands' \\
 --header 'Content-Type: application/json' \\
@@ -29,10 +35,12 @@ const App: React.FC = () => {
   const [responses, setResponses] = useState<UserDefinedResponse[]>([]);
   const [paramsOpen, setParamsOpen] = useState(true);
   const [responsesOpen, setResponsesOpen] = useState(true);
-  const [showMandatoryWarning, setShowMandatoryWarning] = useState(false);
-  const [showResponseWarning, setShowResponseWarning] = useState(false);
+  const [preConvertWarning, setPreConvertWarning] = useState<PreConvertWarning | null>(null);
 
-  // ── Derived: extract title / method / path from Grok analysis summary ──
+  const paramsSectionRef = useRef<HTMLDivElement>(null);
+  const responsesSectionRef = useRef<HTMLDivElement>(null);
+
+  // ── Derived: extract title / method / path from analysis summary ──
   const extracted = useMemo(() => {
     const summaryMatch = details.match(/summary\s*[:\s]+([^\n\r]+)/i);
     const methodMatch = details.match(/method\s*[:\s]+([^\n\r]+)/i);
@@ -68,9 +76,9 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, [curlInput]);
 
-  // ── Convert (inner — bypasses mandatory check) ────────────────────────────
+  // ── Convert (inner — bypasses checks) ────────────────────────────────────
   const doConvert = useCallback(async () => {
-    setShowMandatoryWarning(false);
+    setPreConvertWarning(null);
     setIsConverting(true);
     setConvertError(null);
     setYamlOutput('');
@@ -93,24 +101,44 @@ const App: React.FC = () => {
     }
   }, [curlInput, allParams]);
 
-  // ── Convert (gate — shows warning if no mandatory params chosen) ───────────
+  // ── Convert (gate — shows modal if either check fails) ───────────────────
   const handleConvert = useCallback(async () => {
     if (!curlInput.trim()) {
       setConvertError('Please paste a cURL command first.');
       return;
     }
-    // If params are loaded but none marked mandatory, pause and warn
-    if (allParams.length > 0 && allParams.every((p) => !p.isMandatory)) {
-      setShowMandatoryWarning(true);
-      setParamsOpen(true); // make sure params section is visible
+    const noMandatoryParams = allParams.length > 0 && allParams.every((p) => !p.isMandatory);
+    const noResponses = responses.length === 0;
+    if (noMandatoryParams || noResponses) {
+      setPreConvertWarning({ noMandatoryParams, noResponses });
       return;
     }
     await doConvert();
-  }, [curlInput, allParams, doConvert]);
+  }, [curlInput, allParams, responses, doConvert]);
+
+  // ── Modal fix callbacks ───────────────────────────────────────────────────
+  const handleFixParams = useCallback(() => {
+    setPreConvertWarning(null);
+    setParamsOpen(true);
+    setTimeout(() => {
+      paramsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }, []);
+
+  const handleFixResponses = useCallback(() => {
+    setPreConvertWarning(null);
+    setResponsesOpen(true);
+    setResponses((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), statusCode: '', description: '', contentType: 'application/json', bodyExample: '' },
+    ]);
+    setTimeout(() => {
+      responsesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }, []);
 
   // ── Params ─────────────────────────────────────────────────────────────────
   const handleToggleParam = (id: string, mandatory: boolean) => {
-    if (mandatory) setShowMandatoryWarning(false);
     setAllParams((prev) => prev.map((p) => (p.id === id ? { ...p, isMandatory: mandatory } : p)));
   };
 
@@ -120,7 +148,6 @@ const App: React.FC = () => {
 
   // ── Responses ──────────────────────────────────────────────────────────────
   const handleAddResponse = () => {
-    setShowResponseWarning(false);
     setResponses((prev) => [
       ...prev,
       { id: crypto.randomUUID(), statusCode: '', description: '', contentType: 'application/json', bodyExample: '' },
@@ -142,7 +169,6 @@ const App: React.FC = () => {
   // ── Download ───────────────────────────────────────────────────────────────
   const doDownload = () => {
     if (!yamlOutput) return;
-    setShowResponseWarning(false);
     const patched = patchYaml(yamlOutput, allParams, responses);
     const fileName = (extracted.title || 'openapi-spec')
       .toLowerCase()
@@ -165,11 +191,6 @@ const App: React.FC = () => {
 
   const handleDownload = () => {
     if (!yamlOutput) return;
-    if (responses.length === 0) {
-      setShowResponseWarning(true);
-      setResponsesOpen(true);
-      return;
-    }
     doDownload();
   };
 
@@ -181,8 +202,7 @@ const App: React.FC = () => {
     setConvertError(null);
     setAllParams([]);
     setResponses([]);
-    setShowMandatoryWarning(false);
-    setShowResponseWarning(false);
+    setPreConvertWarning(null);
   };
 
   // ── Section header helper ──────────────────────────────────────────────────
@@ -224,19 +244,14 @@ const App: React.FC = () => {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-6 py-3.5 flex items-center justify-between">
-          {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-md shadow-blue-200">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
               </svg>
             </div>
-            <div>
-              <p className="text-base font-bold text-slate-900 leading-none">Curl to Yaml converter</p>
-            </div>
+            <p className="text-base font-bold text-slate-900 leading-none">Curl to Yaml converter</p>
           </div>
-
-          {/* Actions */}
           <div className="flex items-center gap-1">
             <button
               onClick={() => { setCurlInput(EXAMPLE_CURL); setConvertError(null); }}
@@ -283,16 +298,13 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {/* Convert button */}
             <button
               onClick={handleConvert}
               disabled={isConverting}
               className={`mt-3 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold transition-all
                 ${isConverting
                   ? 'bg-slate-100 text-slate-400 cursor-wait'
-                  : showMandatoryWarning
-                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-200 animate-pulse'
-                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-200 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]'
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-200 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]'
                 }`}
             >
               {isConverting ? (
@@ -315,43 +327,13 @@ const App: React.FC = () => {
           </div>
 
           {/* Parameters */}
-          <div className={`p-5 border-b transition-all duration-300 ${showMandatoryWarning ? 'border-amber-300 bg-amber-50' : 'border-slate-100'}`}>
-            <div className={`rounded-lg transition-all duration-300 ${showMandatoryWarning ? 'ring-2 ring-amber-400 ring-offset-1 rounded-lg px-2 -mx-2' : ''}`}>
-              <SectionHeader
-                label="Parameters"
-                count={allParams.length}
-                open={paramsOpen}
-                onToggle={() => setParamsOpen((o) => !o)}
-              />
-            </div>
-
-            {/* Mandatory warning banner */}
-            {showMandatoryWarning && (
-              <div className="mt-2 mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3">
-                <div className="flex items-start gap-2 mb-2.5">
-                  <span className="text-amber-500 text-base leading-none mt-0.5">⚠️</span>
-                  <p className="text-xs font-semibold text-amber-800 leading-snug">
-                    No parameters marked as required.<br />
-                    <span className="font-normal text-amber-700">Check the boxes above for any fields your API needs.</span>
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={doConvert}
-                    className="flex-1 text-[11px] font-bold px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors"
-                  >
-                    No required params — generate anyway
-                  </button>
-                  <button
-                    onClick={() => setShowMandatoryWarning(false)}
-                    className="text-[11px] font-semibold px-3 py-2 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
-                  >
-                    Let me check
-                  </button>
-                </div>
-              </div>
-            )}
-
+          <div ref={paramsSectionRef} className="p-5 border-b border-slate-100">
+            <SectionHeader
+              label="Parameters"
+              count={allParams.length}
+              open={paramsOpen}
+              onToggle={() => setParamsOpen((o) => !o)}
+            />
             {paramsOpen && (
               <div className="mt-2">
                 {allParams.length === 0 ? (
@@ -368,43 +350,13 @@ const App: React.FC = () => {
           </div>
 
           {/* Responses */}
-          <div className={`p-5 transition-all duration-300 ${showResponseWarning ? 'border border-amber-300 bg-amber-50 rounded-xl mx-3 mb-3' : ''}`}>
-            <div className={`rounded-lg transition-all duration-300 ${showResponseWarning ? 'ring-2 ring-amber-400 ring-offset-1 rounded-lg px-2 -mx-2' : ''}`}>
-              <SectionHeader
-                label="Responses"
-                count={responses.length}
-                open={responsesOpen}
-                onToggle={() => setResponsesOpen((o) => !o)}
-              />
-            </div>
-
-            {/* Response warning banner */}
-            {showResponseWarning && (
-              <div className="mt-2 mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3">
-                <div className="flex items-start gap-2 mb-2.5">
-                  <span className="text-amber-500 text-base leading-none mt-0.5">⚠️</span>
-                  <p className="text-xs font-semibold text-amber-800 leading-snug">
-                    No response codes added.<br />
-                    <span className="font-normal text-amber-700">Adding a response helps ReadMe show the right status codes in your docs.</span>
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={doDownload}
-                    className="flex-1 text-[11px] font-bold px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors"
-                  >
-                    Skip — download without responses
-                  </button>
-                  <button
-                    onClick={() => setShowResponseWarning(false)}
-                    className="text-[11px] font-semibold px-3 py-2 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
-                  >
-                    Let me add
-                  </button>
-                </div>
-              </div>
-            )}
-
+          <div ref={responsesSectionRef} className="p-5">
+            <SectionHeader
+              label="Responses"
+              count={responses.length}
+              open={responsesOpen}
+              onToggle={() => setResponsesOpen((o) => !o)}
+            />
             {responsesOpen && (
               <div className="mt-2">
                 <ResponseDefinitionForm
@@ -421,7 +373,6 @@ const App: React.FC = () => {
         {/* ── Right Panel (Output) ──────────────────────────────────────── */}
         <div className="flex-1 flex flex-col bg-slate-900 min-h-0">
           {!hasOutput ? (
-            /* Empty state */
             <div className="flex-1 flex flex-col items-center justify-center gap-5 p-12">
               <div className="w-20 h-20 rounded-3xl bg-slate-800 flex items-center justify-center border-2 border-dashed border-slate-700">
                 <svg className="w-9 h-9 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -446,14 +397,13 @@ const App: React.FC = () => {
                   </div>
                 ))}
               </div>
-              {/* What it does automatically */}
               <div className="mt-6 w-full max-w-xs">
                 <p className="text-slate-500 font-semibold text-[11px] uppercase tracking-wider mb-2">What it does automatically</p>
                 <div className="flex flex-col gap-1.5 text-xs text-slate-600">
                   {[
                     'Strips the host from the URL — only the path goes into the spec',
                     'Adds all 6 Capillary regional servers (EU, India, APAC, SG, CN, NA) as a dropdown in ReadMe',
-                    'Truncates your Basic Auth token so credentials are never exposed in docs',
+                    'Masks your Basic Auth token so credentials are never exposed in docs',
                     'Detects query params, headers, and request body fields automatically',
                     'Outputs valid YAML — ready to upload directly to ReadMe.com',
                   ].map((note) => (
@@ -466,15 +416,12 @@ const App: React.FC = () => {
               </div>
             </div>
           ) : (
-            /* Output */
             <div className="flex-1 flex flex-col min-h-0">
               <EndpointHeader
                 title={extracted.title}
                 method={extracted.method}
                 path={extracted.path}
               />
-
-              {/* YAML Editor */}
               <div className="flex-1 min-h-0">
                 <Editor
                   value={yamlOutput}
@@ -498,6 +445,17 @@ const App: React.FC = () => {
           </p>
         </div>
       </footer>
+
+      {/* ── Pre-Convert Warning Modal ────────────────────────────────────── */}
+      {preConvertWarning && (
+        <PreConvertModal
+          warnings={preConvertWarning}
+          onGenerateAnyway={doConvert}
+          onFixParams={handleFixParams}
+          onFixResponses={handleFixResponses}
+          onClose={() => setPreConvertWarning(null)}
+        />
+      )}
     </div>
   );
 };
