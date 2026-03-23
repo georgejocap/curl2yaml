@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { convertCurlToOpenAPI } from './services/geminiService';
 import { parseCurl } from './services/curlParser';
-import { patchYaml } from './services/yamlPatcher';
+import { patchYaml, applyMethodToYaml } from './services/yamlPatcher';
 import Editor from './components/Editor';
 import EndpointHeader from './components/EndpointHeader';
 import ParametersTable from './components/ParametersTable';
@@ -28,7 +28,8 @@ const App: React.FC = () => {
   const [curlInput, setCurlInput] = useState('');
   const [isConverting, setIsConverting] = useState(false);
   const [convertError, setConvertError] = useState<string | null>(null);
-  const [yamlOutput, setYamlOutput] = useState('');
+  const [rawYaml, setRawYaml] = useState('');           // raw AI output — never mutated
+  const [effectiveMethod, setEffectiveMethod] = useState(''); // local parser → user can override
   const [details, setDetails] = useState('');
   const [modelUsed, setModelUsed] = useState('');
   const [allParams, setAllParams] = useState<CurlParameter[]>([]);
@@ -40,35 +41,42 @@ const App: React.FC = () => {
   const paramsSectionRef = useRef<HTMLDivElement>(null);
   const responsesSectionRef = useRef<HTMLDivElement>(null);
 
-  // ── Derived: extract title / method / path from analysis summary ──
+  // ── Derived: extract title / path from analysis summary (NOT method — local parser owns that) ──
   const extracted = useMemo(() => {
     const summaryMatch = details.match(/summary\s*[:\s]+([^\n\r]+)/i);
-    const methodMatch = details.match(/method\s*[:\s]+([^\n\r]+)/i);
     const pathMatch = details.match(/path\s*[:\s]+([^\n\r]+)/i);
     return {
       title: summaryMatch?.[1]?.replace(/\*+/g, '').trim() ?? '',
-      method: methodMatch?.[1]?.trim() ?? '',
       path: pathMatch?.[1]?.trim() ?? '',
     };
   }, [details]);
 
-  const hasOutput = !!yamlOutput;
+  // ── Reactive YAML — applies effectiveMethod to rawYaml whenever either changes ──
+  const yamlOutput = useMemo(() => {
+    if (!rawYaml) return '';
+    if (!effectiveMethod) return rawYaml;
+    return applyMethodToYaml(rawYaml, effectiveMethod);
+  }, [rawYaml, effectiveMethod]);
 
-  // Auto-parse cURL as user types/pastes — populates params before Convert is clicked
+  const hasOutput = !!rawYaml;
+
+  // ── Auto-parse cURL as user types — populates params + sets effectiveMethod from local parser ──
   useEffect(() => {
     if (!curlInput.trim()) {
       setAllParams([]);
+      setEffectiveMethod('');
       return;
     }
     const timer = setTimeout(() => {
       try {
-        const { queryParams, headers, bodyParams } = parseCurl(curlInput);
+        const { queryParams, headers, bodyParams, method } = parseCurl(curlInput);
         const combined: CurlParameter[] = [
           ...queryParams,
           ...headers,
           ...bodyParams.filter((p) => p.name !== ''),
         ];
         setAllParams(combined);
+        setEffectiveMethod(method); // local parser is authoritative for method
       } catch {
         // ignore parse errors silently
       }
@@ -81,7 +89,7 @@ const App: React.FC = () => {
     setPreConvertWarning(null);
     setIsConverting(true);
     setConvertError(null);
-    setYamlOutput('');
+    setRawYaml('');
     setDetails('');
     setModelUsed('');
 
@@ -91,9 +99,10 @@ const App: React.FC = () => {
 
     try {
       const result = await convertCurlToOpenAPI(curlInput, mandatory);
-      setYamlOutput(result.yaml);
+      setRawYaml(result.yaml);
       setDetails(result.details);
       setModelUsed(result.modelUsed);
+      // effectiveMethod stays as local parser detected it — do NOT override from AI details
     } catch (err) {
       setConvertError((err as Error)?.message ?? 'Conversion failed. Please try again.');
     } finally {
@@ -115,6 +124,11 @@ const App: React.FC = () => {
     }
     await doConvert();
   }, [curlInput, allParams, responses, doConvert]);
+
+  // ── Method change (user edits via EndpointHeader dropdown) ───────────────
+  const handleMethodChange = useCallback((newMethod: string) => {
+    setEffectiveMethod(newMethod);
+  }, []);
 
   // ── Modal fix callbacks ───────────────────────────────────────────────────
   const handleFixParams = useCallback(() => {
@@ -166,7 +180,7 @@ const App: React.FC = () => {
     setResponses((prev) => prev.filter((r) => r.id !== id));
   };
 
-  // ── Download ───────────────────────────────────────────────────────────────
+  // ── Download — patches current yamlOutput with responses + params ─────────
   const doDownload = () => {
     if (!yamlOutput) return;
     const patched = patchYaml(yamlOutput, allParams, responses);
@@ -197,7 +211,8 @@ const App: React.FC = () => {
   // ── Clear ──────────────────────────────────────────────────────────────────
   const handleClear = () => {
     setCurlInput('');
-    setYamlOutput('');
+    setRawYaml('');
+    setEffectiveMethod('');
     setDetails('');
     setConvertError(null);
     setAllParams([]);
@@ -419,8 +434,9 @@ const App: React.FC = () => {
             <div className="flex-1 flex flex-col min-h-0">
               <EndpointHeader
                 title={extracted.title}
-                method={extracted.method}
+                method={effectiveMethod}
                 path={extracted.path}
+                onMethodChange={handleMethodChange}
               />
               <div className="flex-1 min-h-0">
                 <Editor

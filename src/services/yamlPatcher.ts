@@ -1,6 +1,48 @@
 import yaml from 'js-yaml';
 import type { CurlParameter, UserDefinedResponse } from '../types';
 
+const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'];
+
+/** Renames the HTTP method key in the YAML paths object and swaps the default response code. */
+export const applyMethodToYaml = (rawYaml: string, newMethod: string): string => {
+  if (!rawYaml || !newMethod) return rawYaml;
+  let spec: any;
+  try {
+    spec = yaml.load(rawYaml);
+  } catch {
+    return rawYaml;
+  }
+  if (!spec?.paths) return rawYaml;
+
+  const nm = newMethod.toLowerCase();
+  for (const pathKey of Object.keys(spec.paths)) {
+    const pathObj = spec.paths[pathKey];
+    for (const m of HTTP_METHODS) {
+      if (pathObj[m] && m !== nm) {
+        const op = { ...pathObj[m] };
+        // Swap default response code: POST uses 201, everything else uses 200
+        if (op.responses) {
+          const fromCode = nm === 'post' ? '200' : '201';
+          const toCode   = nm === 'post' ? '201' : '200';
+          if (op.responses[fromCode] && !op.responses[toCode]) {
+            op.responses[toCode] = op.responses[fromCode];
+            delete op.responses[fromCode];
+          }
+        }
+        pathObj[nm] = op;
+        delete pathObj[m];
+        break;
+      }
+    }
+  }
+
+  try {
+    return yaml.dump(spec, { lineWidth: -1, noRefs: true });
+  } catch {
+    return rawYaml;
+  }
+};
+
 export const patchYaml = (
   rawYaml: string,
   params: CurlParameter[],  // kept in signature for compatibility but unused

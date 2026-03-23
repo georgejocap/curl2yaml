@@ -49,6 +49,16 @@ servers:
           - north-america.intouch.capillarytech.com
         default: '{Host}'
 
+━━━ HTTP METHOD (CRITICAL) ━━━
+Determine the HTTP method ONLY from explicit cURL flags. NEVER infer the method from URL structure, path segments, resource names, or numeric IDs at the end of a path.
+
+Rules (in strict order of priority):
+1. If -X or --request flag is present → use that exact method
+2. If NO -X/--request AND --data/--data-raw/--data-binary/--data-urlencode is present → POST
+3. If NO -X/--request AND NO --data → GET (ALWAYS — even if the URL ends with a numeric ID like /promotions/1133608813)
+
+A URL like /members/123/promotions/456 with no -X flag and no body is ALWAYS a GET request. Never assume DELETE, PUT, or PATCH without an explicit -X flag.
+
 ━━━ PARAMETERS ━━━
 CRITICAL: NEVER place a "headers:" property directly on an operation object. It is NOT valid OpenAPI 3.0 and will fail ReadMe validation.
 
