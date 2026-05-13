@@ -1,5 +1,5 @@
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
-const FALLBACK_MODEL = 'gemini-2.0-flash';
+const FALLBACK_MODEL = 'gemini-flash-latest';
 const CACHE_KEY = 'oas_gemini_model';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
